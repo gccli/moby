@@ -205,7 +205,7 @@ func (m *manifestStore) Get(ctx context.Context, desc ocispec.Descriptor, ref re
 		defer w.Close()
 	}
 
-	l.WithError(err).Debug("Fetching manifest from remote")
+	l.Debugf("Fetching manifest from remote %T", m.remote)
 
 	manifest, err := m.remote.Get(ctx, desc.Digest)
 	if err != nil {

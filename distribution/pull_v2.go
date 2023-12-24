@@ -55,6 +55,8 @@ func (e imageConfigPullError) Error() string {
 
 // newPuller returns a puller to pull from a v2 registry.
 func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, config *ImagePullConfig, local ContentStore) *puller {
+	logrus.Printf("endpoint:%+v", endpoint)
+	logrus.Printf("repoInfo:%+v", repoInfo)
 	return &puller{
 		metadataService: metadata.NewV2MetadataService(config.MetadataStore),
 		endpoint:        endpoint,
@@ -104,6 +106,8 @@ func (p *puller) pull(ctx context.Context, ref reference.Named) (err error) {
 
 func (p *puller) pullRepository(ctx context.Context, ref reference.Named) (err error) {
 	var layersDownloaded bool
+	logrus.Printf("pullRepository: %s", ref)
+
 	if !reference.IsNameOnly(ref) {
 		layersDownloaded, err = p.pullTag(ctx, ref, p.config.Platform)
 		if err != nil {
@@ -362,10 +366,12 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 		tagOrDigest = digested.String()
 	} else if tagged, isTagged = ref.(reference.NamedTagged); isTagged {
 		tagService := p.repo.Tags(ctx)
+		logrus.Printf("tagService: %T", tagService)
 		desc, err := tagService.Get(ctx, tagged.Tag())
 		if err != nil {
 			return false, err
 		}
+		logrus.Printf("tagService.Get return Descriptor: %+v", desc)
 
 		dgst = desc.Digest
 		tagOrDigest = tagged.Tag()
@@ -410,18 +416,22 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 				return false, err
 			}
 
+			logrus.Printf("ManifestService.Get with tag: %s", tagged.Tag())
 			manifest, err = ms.Get(ctx, "", distribution.WithTag(tagged.Tag()))
 			err = errors.Wrap(err, "error after falling back to get manifest by tag")
 		}
 		if err != nil {
 			return false, err
 		}
+	} else {
+		logrus.Printf("ManifestService.Get with digest success: %s", desc)
 	}
 
 	if manifest == nil {
 		return false, fmt.Errorf("image manifest does not exist for tag or digest %q", tagOrDigest)
 	}
 
+	logrus.Printf("Success Get manifest: %T", manifest)
 	if m, ok := manifest.(*schema2.DeserializedManifest); ok {
 		if err := p.validateMediaType(m.Manifest.Config.MediaType); err != nil {
 			return false, err
@@ -467,6 +477,8 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 
 	progress.Message(p.config.ProgressOutput, "", "Digest: "+manifestDigest.String())
 
+	logrus.Debugf("Finish pull: %s, digest:%s", reference.FamiliarString(ref), manifestDigest.String())
+
 	if p.config.ReferenceStore != nil {
 		oldTagID, err := p.config.ReferenceStore.Get(ref)
 		if err == nil {
@@ -482,6 +494,7 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 				return false, err
 			}
 		} else {
+			logrus.Debugf("Finish pull: %s, addDigestReference:%s id:%s", reference.FamiliarString(ref), manifestDigest.String(), id)
 			if err = addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
 				return false, err
 			}
@@ -618,6 +631,8 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 		// anything.
 		return target.Digest, nil
 	}
+
+	logrus.Infof("pullSchema2Layers target:%+v, layers:%d", target, len(layers))
 
 	if err := checkSupportedMediaType(target.MediaType); err != nil {
 		return "", err
@@ -786,19 +801,24 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 		}
 	}
 
+	logrus.Infof("pullSchema2Layers begin to store ConfigJson")
+
 	imageID, err := p.config.ImageStore.Put(ctx, configJSON)
 	if err != nil {
 		return "", err
 	}
+	logrus.Infof("pullSchema2Layers got imageID:%s", imageID)
 
 	return imageID, nil
 }
 
 func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
+	logrus.Infof("pullSchema2 ref:%s mfst:%+v", ref, mfst)
 	manifestDigest, err = schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
 	}
+	logrus.Infof("pullSchema2 ref:%s begin to pullSchema2Layers", ref)
 	id, err = p.pullSchema2Layers(ctx, mfst.Target(), mfst.Layers, platform)
 	return id, manifestDigest, err
 }
@@ -915,6 +935,9 @@ const (
 
 func (p *puller) pullSchema2Config(ctx context.Context, dgst digest.Digest) (configJSON []byte, err error) {
 	blobs := p.repo.Blobs(ctx)
+
+	logrus.Infof("pullSchema2Config with blob service %T, digest:%s", blobs, dgst)
+
 	err = retry(ctx, defaultMaxSchemaPullAttempts, defaultSchemaPullBackoff, func(ctx context.Context) (err error) {
 		configJSON, err = blobs.Get(ctx, dgst)
 		return err
@@ -979,6 +1002,8 @@ func schema2ManifestDigest(ref reference.Named, mfst distribution.Manifest) (dig
 		return "", err
 	}
 
+	logrus.Infof("schema2ManifestDigest payload size:%d", len(canonical))
+
 	// If pull by digest, then verify the manifest digest.
 	if digested, isDigested := ref.(reference.Canonical); isDigested {
 		verifier := digested.Digest().Verifier()
@@ -993,7 +1018,11 @@ func schema2ManifestDigest(ref reference.Named, mfst distribution.Manifest) (dig
 		return digested.Digest(), nil
 	}
 
-	return digest.FromBytes(canonical), nil
+	dgst := digest.FromBytes(canonical)
+
+	logrus.Infof("schema2ManifestDigest return digest:%s", dgst)
+
+	return dgst, nil
 }
 
 func verifySchema1Manifest(signedManifest *schema1.SignedManifest, ref reference.Reference) (m *schema1.Manifest, err error) {

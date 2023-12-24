@@ -29,6 +29,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 	// Special case: "pull -a" may send an image name with a
 	// trailing :. This is ugly, but let's not break API
 	// compatibility.
+	logrus.Infof("Pull image:%s:%s", image, tag)
 	image = strings.TrimSuffix(image, ":")
 
 	ref, err := reference.ParseNormalizedNamed(image)

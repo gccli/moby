@@ -76,6 +76,7 @@ func NewReferenceStore(jsonPath string) (Store, error) {
 		return nil, err
 	}
 
+	fmt.Printf("NewReferenceStore: %s\n", abspath)
 	store := &refStore{
 		jsonPath:            abspath,
 		Repositories:        make(map[string]repository),
@@ -89,6 +90,8 @@ func NewReferenceStore(jsonPath string) (Store, error) {
 	} else if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("Repositories: %d\n", len(store.Repositories))
 	return store, nil
 }
 
@@ -129,6 +132,8 @@ func (store *refStore) addReference(ref reference.Named, id digest.Digest, force
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("addReference: ref:%s id:%s\n", ref, id)
 
 	refName := reference.FamiliarName(ref)
 	refStr := reference.FamiliarString(ref)
@@ -192,6 +197,7 @@ func (store *refStore) Delete(ref reference.Named) (bool, error) {
 		return false, err
 	}
 
+	fmt.Printf("deleteReference: ref:%s\n", ref)
 	ref = reference.TagNameOnly(ref)
 
 	refName := reference.FamiliarName(ref)

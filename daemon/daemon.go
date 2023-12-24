@@ -1038,6 +1038,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
 		})
 	} else {
+		logrus.Infof("Setting the storage driver (%s), root:%s mapping:%v", driverName, config.Root, idMapping)
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:                      config.Root,
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
@@ -1058,6 +1059,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 
 		imageRoot := filepath.Join(config.Root, "image", layerStore.DriverName())
+		logrus.Infof("Setting imageRoot:%s", imageRoot)
 		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 		if err != nil {
 			return nil, err
@@ -1085,10 +1087,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			return nil, err
 		}
 
+		logrus.Infof("Setting imageRoot:%s", imageRoot)
 		distributionMetadataStore, err := dmetadata.NewFSMetadataStore(filepath.Join(imageRoot, "distribution"))
 		if err != nil {
 			return nil, err
 		}
+		logrus.Infof("Setting ImageServiceConfig")
 
 		imgSvcConfig := images.ImageServiceConfig{
 			ContainerStore:            d.containers,

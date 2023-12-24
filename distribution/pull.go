@@ -15,6 +15,8 @@ import (
 // Pull initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
 func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, local ContentStore) error {
+	logrus.Infof("Trying to pull %s ....", ref.String())
+
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := config.RegistryService.ResolveRepository(ref)
 	if err != nil {

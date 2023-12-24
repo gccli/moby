@@ -257,7 +257,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	logrus.Info("Daemon has completed initialization")
+	logrus.Info("Daemon has completed initialization=============")
 
 	routerCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

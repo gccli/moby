@@ -304,6 +304,8 @@ func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, er
 		return distribution.Descriptor{}, err
 	}
 
+	fmt.Printf("tags.Get ref:%s url:%s\n", ref, u)
+
 	newRequest := func(method string) (*http.Response, error) {
 		req, err := http.NewRequest(method, u, nil)
 		if err != nil {
@@ -322,6 +324,8 @@ func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, er
 		return distribution.Descriptor{}, err
 	}
 	defer resp.Body.Close()
+
+	fmt.Printf("tags.Get resp:%+v \n", resp)
 
 	switch {
 	case resp.StatusCode >= 200 && resp.StatusCode < 400 && len(resp.Header.Get("Docker-Content-Digest")) > 0:
@@ -465,6 +469,8 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		return nil, err
 	}
 
+	fmt.Printf("mestfiests.Get url:%s dgst:%s, types:%v\n", u, dgst, mediaTypes)
+
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
@@ -502,6 +508,9 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		if err != nil {
 			return nil, err
 		}
+
+		fmt.Printf("mestfiests.Get mt:%s decode ok\n", mt)
+
 		return m, nil
 	}
 	return nil, HandleErrorResponse(resp)

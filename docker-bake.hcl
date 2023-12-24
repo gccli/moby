@@ -1,5 +1,5 @@
 variable "APT_MIRROR" {
-  default = ""
+  default = "mirrors.tuna.tsinghua.edu.cn"
 }
 variable "DOCKER_DEBUG" {
   default = ""

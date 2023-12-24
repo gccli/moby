@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
+	"github.com/sirupsen/logrus"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -47,6 +48,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		beforeFilter, sinceFilter time.Time
 	)
 	err = opts.Filters.WalkValues("before", func(value string) error {
+		logrus.Debugf("ImageService.GetImage: before value %v", value)
 		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})
 		if err != nil {
 			return err
@@ -63,6 +65,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	}
 
 	err = opts.Filters.WalkValues("since", func(value string) error {
+		logrus.Debugf("ImageService.GetImage: since value %v", value)
 		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})
 		if err != nil {
 			return err
@@ -82,7 +85,9 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	if danglingOnly {
 		selectedImages = i.imageStore.Heads()
 	} else {
+		logrus.Debugf("ImageService call: imageStore.Map")
 		selectedImages = i.imageStore.Map()
+		logrus.Debugf("ImageService call: imageStore.Map return %d images", len(selectedImages))
 	}
 
 	var (
@@ -123,7 +128,8 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		}
 
 		var size int64
-		if layerID := img.RootFS.ChainID(); layerID != "" {
+		var layerID layer.ChainID
+		if layerID = img.RootFS.ChainID(); layerID != "" {
 			l, err := i.layerStore.Get(layerID)
 			if err != nil {
 				// The layer may have been deleted between the call to `Map()` or
@@ -138,6 +144,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 			layer.ReleaseAndLog(i.layerStore, l)
 		}
 
+		logrus.Debugf("check RootFS: id:%s chanID:%s size:%d", id, layerID, size)
 		summary := newImageSummary(img, size)
 
 		for _, ref := range i.referenceStore.References(id.Digest()) {
@@ -159,9 +166,11 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 			}
 			if _, ok := ref.(reference.Canonical); ok {
 				summary.RepoDigests = append(summary.RepoDigests, reference.FamiliarString(ref))
+				logrus.Debugf("  check RootFS: summary.RepoDigests %v", summary.RepoDigests)
 			}
 			if _, ok := ref.(reference.NamedTagged); ok {
 				summary.RepoTags = append(summary.RepoTags, reference.FamiliarString(ref))
+				logrus.Debugf("  check RootFS: summary.RepoTags %v", summary.RepoTags)
 			}
 		}
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
